@@ -186,6 +186,86 @@ node scripts/build-all.mjs   # npm install + npm run build in all 20 repos (regi
 Repos without a build script (codegen-cli, e2e-checkout, api-contract-tests)
 are install-only.
 
+### Toy build cache (local + remote, from scratch)
+
+To understand what monorepo tools actually do, this repo includes a ~200-line
+implementation of the whole caching stack:
+
+- `scripts/cached-run.mjs` — cached `npm run build` across all repos. The cache
+  key hashes each repo's source files, its build command, the node version, and
+  — crucially — the cache keys of its internal `@acme/*` dependencies,
+  recursively. Task ordering (topological sort derived from package.json, not
+  hand-maintained) and affected detection both fall out of that key design.
+- `cache-server/server.mjs` — the remote cache: a dumb content-addressed blob
+  store over HTTP (`GET`/`PUT /v1/artifacts/<key>`), open reads, token-gated
+  writes. All intelligence lives in the client's key computation.
+
+```sh
+node cache-server/server.mjs        # start the remote cache on :4874 (optional)
+node scripts/cached-run.mjs         # local -> remote -> execute (+ upload on miss)
+node scripts/cached-run.mjs --no-remote
+```
+
+Measured scenarios (this machine):
+
+| scenario                   | result                                                           |
+| -------------------------- | ---------------------------------------------------------------- |
+| cold run                   | 17 executed — ~18s                                               |
+| warm local                 | 17 local hits — 0.1s                                             |
+| local wiped, remote warm   | 17 remote hits — 0.2s                                            |
+| edit `@acme/logger` source | 8 executed (logger + transitive dependents), 9 local hits — ~13s |
+| revert the edit            | 17 local hits again (keys are pure functions of content)         |
+
+Known toy limitations (the things real tools solve): inputs are "all files in
+the repo minus a hardcoded ignore list" (undeclared-input bugs are on you),
+outputs are a hardcoded map, builds still consume registry-installed `@acme/*`
+packages rather than workspace-linked source, artifacts are not signed, and
+there is no cache eviction.
+
+### Env vars and cache keys (be aware!)
+
+An environment variable that changes a build's output is a **cache input**, and
+must be part of the cache key — otherwise the cache returns wrong hits: stale
+artifacts that look fresh, the worst failure mode a cache has.
+
+This repo contains a live example of the bug. `logger/build.mjs` minifies only
+when `NODE_ENV=production`, but `scripts/cached-run.mjs` does not hash
+`NODE_ENV`, so:
+
+```sh
+node scripts/cached-run.mjs                        # caches the unminified dev build
+NODE_ENV=production node scripts/cached-run.mjs    # "HIT" — wrongly restores the dev artifact
+```
+
+No tool can hash the whole environment (PATH, PWD, session vars differ on every
+machine — nothing would ever hit), so every tool makes env inputs **declared,
+opt-in state**. How the two main candidates handle it:
+
+- **Turborepo** — declare per task in `turbo.json`
+  (`"build": {"env": ["API_URL", "NEXT_PUBLIC_*"]}`, plus `globalEnv`); the
+  declared vars' values are hashed into the key. `passThroughEnv` is the
+  explicit opposite: visible at runtime, excluded from the key (deploy tokens).
+  **Strict env mode (default since 2.0)** runs tasks with a filtered
+  environment containing only declared vars — an undeclared var isn't a silent
+  wrong hit, it's a loud build failure. Framework inference auto-hashes
+  bundle-inlined vars (`NEXT_PUBLIC_*`, `VITE_*`) — the ones people forget.
+  Inspect with `turbo run build --dry=json`.
+- **Nx** — declare as target inputs: `{"env": "API_URL"}` alongside file globs
+  (and `{"runtime": "node --version"}` to hash a command's output, e.g. the
+  toolchain version). No strict mode: tasks see the full parent environment, so
+  an undeclared env input stays a silent risk — discipline is on you. Nx
+  auto-loads `.env` files into the task environment, but loading ≠ hashing:
+  values only affect the key if declared (or if the `.env` file itself falls
+  under the project's file inputs).
+- **`.env` files** in both tools are file inputs, not env inputs — and
+  gitignored `.env` files are typically _outside_ the default file inputs, so
+  they affect nothing until explicitly declared.
+
+Survey takeaway: when trialing a tool, deliberately leave one env var
+undeclared and see what happens — the difference between "wrong cache hit"
+(silent) and "undefined variable, build fails" (strict mode) is the difference
+between a debugging afternoon and a one-line config fix.
+
 ### Local-link alternative (no registry)
 
 To mimic `npm link` style development instead of publish/install:
