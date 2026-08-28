@@ -1,0 +1,16 @@
+{
+  "name": "@acme/api-types",
+  "version": "7.0.0",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc --emitDeclarationOnly",
+    "test": "tsc --noEmit",
+    "watch": "tsc --emitDeclarationOnly --watch"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  },
+  "files": [
+    "dist"
+  ]
+}

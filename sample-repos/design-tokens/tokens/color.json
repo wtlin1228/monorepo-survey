@@ -1,0 +1,10 @@
+{
+  "color": {
+    "brand": {
+      "primary": { "value": "#e76125" },
+      "danger": { "value": "#d21419" },
+      "gray-dark": { "value": "#646d72" },
+      "gray-light": { "value": "#ececec" }
+    }
+  }
+}

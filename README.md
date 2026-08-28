@@ -1,0 +1,204 @@
+# monorepo-survey
+
+A sandbox for surveying monorepo migration strategies. It simulates a company
+with ~20 independent repos (`sample-repos/`) that share code through a private
+npm registry, so tooling can be evaluated against realistic multi-repo pain:
+mixed build/test toolchains, internal `@acme/*` dependencies, and version skew.
+
+## What we want from a monorepo tool
+
+- **Build cache** — a task's output is cached by its inputs and replayed instead
+  of re-executed, locally and (with a remote cache) across machines and CI.
+- **Internal dependency** — workspace-linked `@acme/*` packages: changing a lib
+  is immediately visible to its consumers, without publishing to the npm
+  registry (the publish/install/unpublish loop this sandbox goes through is
+  exactly what this removes).
+- **Action dependency** — task ordering derived from the dependency graph
+  (build `@acme/logger` before `@acme/http-client` before `shop-web`), instead
+  of the hand-maintained topological list in `scripts/publish-all.mjs`.
+- **Dependency graph introspection** — query and visualize the package graph
+  (`nx graph`, `turbo query`, `pnpm why`), instead of the hand-drawn diagram below.
+
+## Evaluation questions
+
+Beyond the feature list, judge each candidate on these — scored by doing, not
+by reading docs:
+
+- **Is it easy to maintain?** How much per-package config does it need across
+  our 20 repos, and does it drift? What does onboarding repo #21 take? Who has
+  to understand the tool when a toolchain (vite/webpack/parcel/...) is upgraded —
+  each team, or one platform owner?
+- **Is it easy to reason about?** Can a newcomer predict what
+  `build shop-web` will run, in what order, and why? When the cache misses (or
+  wrongly hits), can we find out why — is there a "explain this cache key"
+  story? Do error messages point at the real repo, or at tool internals?
+- **Is it easy to integrate into our CI flow?** Does it fit our existing CI
+  provider, or assume its own SaaS? Can the remote cache be self-hosted (like
+  our Verdaccio here), and what are the security implications of sharing it?
+  Does affected-detection work with shallow clones and merge queues?
+
+## Layout
+
+- `sample-repos/` — 20 standalone repos: 5 apps, 4 UI libs, 2 type libs,
+  4 util libs, 3 CLI tools, 2 integration-test-only suites. Each has its own
+  toolchain (vite / next / webpack / parcel / rollup / tsup / esbuild / babel /
+  tsc / none) and test runner (vitest / jest / mocha / node:test / playwright /
+  none). Every repo has a `.npmrc` pointing the `@acme` scope at the local registry.
+- `registry/` — a [Verdaccio](https://verdaccio.org) private registry.
+  `@acme/*` packages are stored locally and never proxied; everything else
+  proxies through to npmjs.
+- `scripts/publish-all.mjs` — publishes all 13 publishable `@acme/*` packages
+  to the registry, including seeded historical versions.
+
+## Internal dependency graph
+
+Solid edges are `dependencies`, dashed edges are `devDependencies`, and ⚠ marks
+a consumer pinned to an old major (deliberate skew). `@acme/repo-lint` and
+`@acme/codegen-cli` are standalone — no internal dependencies in either direction.
+
+```mermaid
+flowchart TD
+  subgraph apps["Apps"]
+    shop_web["shop-web"]
+    admin_dashboard["admin-dashboard"]
+    order_service["order-service"]
+    warehouse_viewer["warehouse-viewer"]
+    picker_kiosk["picker-kiosk"]
+  end
+
+  subgraph tests["Integration tests"]
+    e2e_checkout["e2e-checkout"]
+    api_contract_tests["api-contract-tests"]
+  end
+
+  subgraph clis["CLI tools"]
+    deploy_cli["@acme/deploy-cli"]
+  end
+
+  subgraph ui["UI libs"]
+    ui_components["@acme/ui-components"]
+    charts["@acme/charts"]
+    design_tokens["@acme/design-tokens"]
+    icons["@acme/icons"]
+  end
+
+  subgraph types["Type libs"]
+    schema_definitions["@acme/schema-definitions"]
+    api_types["@acme/api-types"]
+  end
+
+  subgraph utils["Util libs"]
+    http_client["@acme/http-client"]
+    logger["@acme/logger"]
+    date_utils["@acme/date-utils"]
+    validation_helpers["@acme/validation-helpers"]
+  end
+
+  shop_web -- "^5.2.0" --> ui_components
+  shop_web -- "^2.3.0" --> http_client
+  shop_web -- "^4.1.1" --> date_utils
+  shop_web -. "dev ^7.0.0" .-> api_types
+
+  admin_dashboard -- "⚠ ^4.9.0" --> ui_components
+  admin_dashboard -- "^1.8.0" --> charts
+  admin_dashboard -- "^2.1.0" --> http_client
+  admin_dashboard -. "dev ^7.0.0" .-> api_types
+
+  order_service -- "^1.2.0" --> schema_definitions
+  order_service -- "^1.0.6" --> logger
+  order_service -- "^0.12.0" --> validation_helpers
+  order_service -. "dev ^7.0.0" .-> api_types
+
+  warehouse_viewer -- "⚠ ^1.9.0" --> http_client
+  warehouse_viewer -. "⚠ dev ^6.5.0" .-> api_types
+
+  picker_kiosk -- "^0.4.0" --> icons
+  picker_kiosk -- "^2.3.0" --> http_client
+
+  e2e_checkout -. "dev ^7.0.0" .-> api_types
+  api_contract_tests -. "dev ^1.2.0" .-> schema_definitions
+
+  deploy_cli -- "^1.0.0" --> logger
+
+  ui_components -- "^2.1.0" --> design_tokens
+  ui_components -- "^0.4.0" --> icons
+  charts -- "^2.0.0" --> design_tokens
+  http_client -- "^1.0.0" --> logger
+  schema_definitions -- "^7.0.0" --> api_types
+```
+
+## Workflow
+
+### 1. Start the registry
+
+```sh
+cd registry
+npm install   # first time only
+npm start     # serves http://localhost:4873 (web UI at the same URL)
+```
+
+### 2. Publish the internal packages
+
+```sh
+node scripts/publish-all.mjs           # quick: publish source as-is (--ignore-scripts)
+node scripts/publish-all.mjs --build   # full: npm install + run lifecycle builds first
+```
+
+Quick mode skips builds, so published tarballs contain source but no `dist/`
+— enough for dependency-resolution and workflow experiments. Full mode runs
+`npm install` + `npm run build --if-present` in each package (in topological
+order, so internal deps resolve from packages published earlier in the same
+run) and publishes real, runnable artifacts. Every publishable package has a
+`files` field (`dist`/`lib`/`bin`), which is what keeps build output in the
+tarball even though `.gitignore` excludes it — npm falls back to `.gitignore`
+for tarball contents only when there is no `files` field. Re-runs are
+idempotent (already-published versions are skipped); to switch a version from
+source-only to built artifacts, `npm unpublish <pkg> --force --registry
+http://localhost:4873/` it first (or reset the registry).
+
+Seeded version history (so old-major consumers resolve):
+
+| package             | versions in registry |
+| ------------------- | -------------------- |
+| @acme/http-client   | 1.9.5, 2.1.4, 2.3.0  |
+| @acme/ui-components | 4.9.3, 5.2.0         |
+| @acme/api-types     | 6.5.2, 7.0.0         |
+| @acme/design-tokens | 2.0.2, 2.1.0         |
+| all others          | current version only |
+
+### 3. Install in a consumer repo
+
+```sh
+cd sample-repos/order-service
+npm install    # @acme/* from Verdaccio, everything else proxied from npmjs
+```
+
+Deliberate version skew to exercise migration tooling:
+`warehouse-viewer` pins `@acme/http-client@^1.9.0` and `@acme/api-types@^6.5.0`
+(old majors), `admin-dashboard` pins `@acme/ui-components@^4.9.0`.
+
+### Verify everything builds
+
+```sh
+node scripts/build-all.mjs   # npm install + npm run build in all 20 repos (registry must be running)
+```
+
+Repos without a build script (codegen-cli, e2e-checkout, api-contract-tests)
+are install-only.
+
+### Local-link alternative (no registry)
+
+To mimic `npm link` style development instead of publish/install:
+
+```sh
+cd sample-repos/logger && npm link
+cd ../http-client && npm link @acme/logger
+```
+
+### Reset
+
+```sh
+cd registry && npm run reset   # wipe registry storage (rm -rf storage)
+```
+
+Then republish with `node scripts/publish-all.mjs`.

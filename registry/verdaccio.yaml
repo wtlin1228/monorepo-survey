@@ -1,0 +1,35 @@
+# Local package registry for the monorepo survey.
+# @acme/* packages live here only; everything else proxies to npmjs.
+
+storage: ./storage
+
+listen: 0.0.0.0:4873
+
+web:
+  title: Monorepo Survey Registry
+
+auth:
+  htpasswd:
+    file: ./htpasswd
+    # anyone can register a user (npm adduser), but we also allow anonymous publish below
+    max_users: -1
+
+uplinks:
+  npmjs:
+    url: https://registry.npmjs.org/
+
+packages:
+  '@acme/*':
+    # internal scope: never proxied to npmjs, anyone local can publish
+    access: $all
+    publish: $all
+    unpublish: $all
+  '**':
+    access: $all
+    publish: $all
+    proxy: npmjs
+
+log:
+  type: stdout
+  format: pretty
+  level: warn

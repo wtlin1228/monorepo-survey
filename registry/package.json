@@ -1,0 +1,12 @@
+{
+  "name": "local-registry",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "verdaccio --config verdaccio.yaml",
+    "reset": "rm -rf storage"
+  },
+  "devDependencies": {
+    "verdaccio": "^6.0.0"
+  }
+}

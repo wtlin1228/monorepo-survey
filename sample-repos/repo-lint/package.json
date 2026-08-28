@@ -1,0 +1,27 @@
+{
+  "name": "@acme/repo-lint",
+  "version": "3.4.0",
+  "type": "module",
+  "bin": {
+    "repo-lint": "./dist/cli.js"
+  },
+  "scripts": {
+    "dev": "tsx src/cli.ts",
+    "build": "tsup",
+    "test": "vitest run",
+    "link:local": "npm run build && npm link"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "picocolors": "^1.0.1"
+  },
+  "devDependencies": {
+    "tsup": "^8.2.4",
+    "tsx": "^4.16.5",
+    "typescript": "^5.5.4",
+    "vitest": "^2.0.5"
+  },
+  "files": [
+    "dist"
+  ]
+}
