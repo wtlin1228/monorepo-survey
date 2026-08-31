@@ -37,6 +37,22 @@ by reading docs:
   our Verdaccio here), and what are the security implications of sharing it?
   Does affected-detection work with shallow clones and merge queues?
 
+## Comparison
+
+(as of early 2026 — re-verify licensing before committing, Nx has changed
+policy here more than once)
+
+|                          | Turborepo                               | Nx                                              | Moon                          |
+| ------------------------ | --------------------------------------- | ----------------------------------------------- | ----------------------------- |
+| Version                  | 2.x (2.10)                              | 23.x                                            | 2.x (2.5)                     |
+| Weekly downloads         | ~23.5M (npm `turbo`)                    | ~10.6M (npm `nx`)                               | ~400K (npm `@moonrepo/cli` ~266K + GitHub releases/proto ~130K) |
+| Remote cache             | ✅ Vercel Remote Cache (open HTTP API)  | ✅ Nx Cloud                                     | ✅ Bazel Remote Execution API |
+| Self-hosted remote cache | ✅ free (e.g. `turborepo-remote-cache`) | ⚠️ paid (Powerpack plugins or Nx Cloud on-prem) | ✅ free (e.g. `bazel-remote`) |
+| Non-JS tasks (Go/Python CLI & e2e) | ⚠️ wrapper `package.json` required (graph is npm-only) | ✅ plain `run-commands` targets + declared inputs | ✅ native toolchains (pinned via proto) |
+
+Security note: whoever can _write_ to a shared remote cache can execute code on
+every machine that restores from it — restrict write tokens to CI.
+
 ## Layout
 
 - `sample-repos/` — 20 standalone repos: 5 apps, 4 UI libs, 2 type libs,
