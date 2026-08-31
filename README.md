@@ -39,19 +39,20 @@ by reading docs:
 
 ## Comparison
 
-(as of early 2026 — re-verify licensing before committing, Nx has changed
-policy here more than once)
+(snapshot 2026-08 — re-verify versions and licensing before committing, Nx has
+changed policy here more than once. pnpm workspaces is the no-tool baseline.)
 
-|                          | Turborepo                               | Nx                                              | Moon                          |
-| ------------------------ | --------------------------------------- | ----------------------------------------------- | ----------------------------- |
-| Version                  | 2.x (2.10)                              | 23.x                                            | 2.x (2.5)                     |
-| Weekly downloads         | ~23.5M (npm `turbo`)                    | ~10.6M (npm `nx`)                               | ~400K (npm `@moonrepo/cli` ~266K + GitHub releases/proto ~130K) |
-| Remote cache             | ✅ Vercel Remote Cache (open HTTP API)  | ✅ Nx Cloud                                     | ✅ Bazel Remote Execution API |
-| Self-hosted remote cache | ✅ free (e.g. `turborepo-remote-cache`) | ⚠️ paid (Powerpack plugins or Nx Cloud on-prem) | ✅ free (e.g. `bazel-remote`) |
-| Non-JS tasks (Go/Python CLI & e2e) | ⚠️ wrapper `package.json` required (graph is npm-only) | ✅ plain `run-commands` targets + declared inputs | ✅ native toolchains (pinned via proto) |
-| Internal dependency | ✅ workspace links; JIT "internal packages" (consume source) or `turbo watch` (consume dist) | ✅ workspace links; source-native via tsconfig/project references, buildable libs opt-in | ✅ workspace links; auto-syncs `package.json` deps & tsconfig references from its graph |
-| Action dependency | ✅ `dependsOn` in one root `turbo.json`; tasks = npm scripts (names must align) | ✅ per-project targets + plugin-inferred tasks (less config, more magic) | ✅ first-class tasks with explicit inputs/outputs; inherited by project type/tag |
-| Graph introspection | ✅ `--dry-run` / `--graph` (resolved task graph as text/file) | ✅ `nx graph` (interactive UI, best-in-class) | ✅ `moon task-graph` / `moon query` (dump/serve the graph) |
+|                          | pnpm workspaces (baseline) | Turborepo                               | Nx                                              | Moon                          |
+| ------------------------ | -------------------------- | --------------------------------------- | ----------------------------------------------- | ----------------------------- |
+| Version                  | 11.x                       | 2.x (2.10)                              | 23.x                                            | 2.x (2.5)                     |
+| Weekly downloads         | ~177.6M (npm `pnpm`)       | ~23.5M (npm `turbo`)                    | ~10.6M (npm `nx`)                               | ~400K (npm `@moonrepo/cli` ~266K + GitHub releases/proto ~130K) |
+| 2026 trend (npm downloads/month, Jan 2026 vs Jul 2026) | 📈 +227% (Jan 183M → Jul 598M) | 📈 +168% (Jan 31M → Jul 83M) | ➡️ +26% (Jan 33M → Jul 42M) | 📈 +331% (Jan ~335K → Jul ~1.4M; npm + GitHub releases, GitHub side estimated from cumulative per-release counts; volatile small base) |
+| Remote cache             | ❌ no build cache at all   | ✅ Vercel Remote Cache (open HTTP API)  | ✅ Nx Cloud                                     | ✅ Bazel Remote Execution API |
+| Self-hosted remote cache | —                          | ✅ free (e.g. `turborepo-remote-cache`) | ⚠️ paid (Powerpack plugins or Nx Cloud on-prem) | ✅ free (e.g. `bazel-remote`) |
+| Non-JS tasks (Go/Python CLI & e2e) | ⚠️ scripts run anything, graph is npm-only | ⚠️ wrapper `package.json` required (graph is npm-only) | ✅ plain `run-commands` targets + declared inputs | ✅ native toolchains (pinned via proto) |
+| Internal dependency | ✅ this *is* the linking layer (`workspace:*`) the others build on | ✅ workspace links; JIT "internal packages" (consume source) or `turbo watch` (consume dist) | ✅ workspace links; source-native via tsconfig/project references, buildable libs opt-in | ✅ workspace links; auto-syncs `package.json` deps & tsconfig references from its graph |
+| Action dependency | ⚠️ `pnpm -r` runs topologically + `--filter ...[ref]`, but no task pipeline (no cross-task `dependsOn`) | ✅ `dependsOn` in one root `turbo.json`; tasks = npm scripts (names must align) | ✅ per-project targets + plugin-inferred tasks (less config, more magic) | ✅ first-class tasks with explicit inputs/outputs; inherited by project type/tag |
+| Graph introspection | ⚠️ package graph only (`pnpm why`, `pnpm ls -r`) | ✅ `--dry-run` / `--graph` (resolved task graph as text/file) | ✅ `nx graph` (interactive UI, best-in-class) | ✅ `moon task-graph` / `moon query` (dump/serve the graph) |
 
 Security note: whoever can _write_ to a shared remote cache can execute code on
 every machine that restores from it — restrict write tokens to CI.
