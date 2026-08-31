@@ -49,9 +49,18 @@ policy here more than once)
 | Remote cache             | ✅ Vercel Remote Cache (open HTTP API)  | ✅ Nx Cloud                                     | ✅ Bazel Remote Execution API |
 | Self-hosted remote cache | ✅ free (e.g. `turborepo-remote-cache`) | ⚠️ paid (Powerpack plugins or Nx Cloud on-prem) | ✅ free (e.g. `bazel-remote`) |
 | Non-JS tasks (Go/Python CLI & e2e) | ⚠️ wrapper `package.json` required (graph is npm-only) | ✅ plain `run-commands` targets + declared inputs | ✅ native toolchains (pinned via proto) |
+| Internal dependency | ✅ workspace links; JIT "internal packages" (consume source) or `turbo watch` (consume dist) | ✅ workspace links; source-native via tsconfig/project references, buildable libs opt-in | ✅ workspace links; auto-syncs `package.json` deps & tsconfig references from its graph |
+| Action dependency | ✅ `dependsOn` in one root `turbo.json`; tasks = npm scripts (names must align) | ✅ per-project targets + plugin-inferred tasks (less config, more magic) | ✅ first-class tasks with explicit inputs/outputs; inherited by project type/tag |
+| Graph introspection | ✅ `--dry-run` / `--graph` (resolved task graph as text/file) | ✅ `nx graph` (interactive UI, best-in-class) | ✅ `moon task-graph` / `moon query` (dump/serve the graph) |
 
 Security note: whoever can _write_ to a shared remote cache can execute code on
 every machine that restores from it — restrict write tokens to CI.
+
+Internal-dependency note: all three delegate the actual linking to package
+manager workspaces — pin internal edges with `workspace:*` (fails loudly
+instead of silently falling back to the registry). That protocol is
+pnpm/yarn/bun only, **not npm**, so the migration implies a package manager
+choice too.
 
 ## Layout
 
