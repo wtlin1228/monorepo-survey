@@ -42,17 +42,17 @@ by reading docs:
 (snapshot 2026-08 — re-verify versions and licensing before committing, Nx has
 changed policy here more than once. pnpm workspaces is the no-tool baseline.)
 
-|                          | pnpm workspaces (baseline) | Turborepo                               | Nx                                              | Moon                          |
-| ------------------------ | -------------------------- | --------------------------------------- | ----------------------------------------------- | ----------------------------- |
-| Version                  | 11.x                       | 2.x (2.10)                              | 23.x                                            | 2.x (2.5)                     |
-| Weekly downloads         | ~177.6M (npm `pnpm`)       | ~23.5M (npm `turbo`)                    | ~10.6M (npm `nx`)                               | ~400K (npm `@moonrepo/cli` ~266K + GitHub releases/proto ~130K) |
-| 2026 trend (npm downloads/month, Jan 2026 vs Jul 2026) | 📈 +227% (Jan 183M → Jul 598M) | 📈 +168% (Jan 31M → Jul 83M) | ➡️ +26% (Jan 33M → Jul 42M) | 📈 +331% (Jan ~335K → Jul ~1.4M; npm + GitHub releases, GitHub side estimated from cumulative per-release counts; volatile small base) |
-| Remote cache             | ❌ no build cache at all   | ✅ Vercel Remote Cache (open HTTP API)  | ✅ Nx Cloud                                     | ✅ Bazel Remote Execution API |
-| Self-hosted remote cache | —                          | ✅ free (e.g. `turborepo-remote-cache`) | ⚠️ paid (Powerpack plugins or Nx Cloud on-prem) | ✅ free (e.g. `bazel-remote`) |
-| Non-JS tasks (Go/Python CLI & e2e) | ⚠️ scripts run anything, graph is npm-only | ⚠️ wrapper `package.json` required (graph is npm-only) | ✅ plain `run-commands` targets + declared inputs | ✅ native toolchains (pinned via proto) |
-| Internal dependency | ✅ this *is* the linking layer (`workspace:*`) the others build on | ✅ workspace links; JIT "internal packages" (consume source) or `turbo watch` (consume dist) | ✅ workspace links; source-native via tsconfig/project references, buildable libs opt-in | ✅ workspace links; auto-syncs `package.json` deps & tsconfig references from its graph |
-| Action dependency | ⚠️ `pnpm -r` runs topologically + `--filter ...[ref]`, but no task pipeline (no cross-task `dependsOn`) | ✅ `dependsOn` in one root `turbo.json`; tasks = npm scripts (names must align) | ✅ per-project targets + plugin-inferred tasks (less config, more magic) | ✅ first-class tasks with explicit inputs/outputs; inherited by project type/tag |
-| Graph introspection | ⚠️ package graph only (`pnpm why`, `pnpm ls -r`) | ✅ `--dry-run` / `--graph` (resolved task graph as text/file) | ✅ `nx graph` (interactive UI, best-in-class) | ✅ `moon task-graph` / `moon query` (dump/serve the graph) |
+|                                                        | pnpm workspaces (baseline)                                                                              | Turborepo                                                                                    | Nx                                                                                       | Moon                                                                                                                                   |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Version                                                | 11.x                                                                                                    | 2.x (2.10)                                                                                   | 23.x                                                                                     | 2.x (2.5)                                                                                                                              |
+| Weekly downloads                                       | ~177.6M (npm `pnpm`)                                                                                    | ~23.5M (npm `turbo`)                                                                         | ~10.6M (npm `nx`)                                                                        | ~400K (npm `@moonrepo/cli` ~266K + GitHub releases/proto ~130K)                                                                        |
+| 2026 trend (npm downloads/month, Jan 2026 vs Jul 2026) | 📈 +227% (Jan 183M → Jul 598M)                                                                          | 📈 +168% (Jan 31M → Jul 83M)                                                                 | ➡️ +26% (Jan 33M → Jul 42M)                                                              | 📈 +331% (Jan ~335K → Jul ~1.4M; npm + GitHub releases, GitHub side estimated from cumulative per-release counts; volatile small base) |
+| Remote cache                                           | ❌ no build cache at all                                                                                | ✅ Vercel Remote Cache (open HTTP API)                                                       | ✅ Nx Cloud                                                                              | ✅ Bazel Remote Execution API                                                                                                          |
+| Self-hosted remote cache                               | —                                                                                                       | ✅ free (e.g. `turborepo-remote-cache`)                                                      | ⚠️ paid (Powerpack plugins or Nx Cloud on-prem)                                          | ✅ free (e.g. `bazel-remote`)                                                                                                          |
+| Non-JS tasks (Go/Python/Rust CLI & e2e)                | ⚠️ scripts run anything, graph is npm-only                                                              | ⚠️ wrapper `package.json` required (graph is npm-only)                                       | ✅ plain `run-commands` targets + declared inputs                                        | ✅ native toolchains (pinned via proto)                                                                                                |
+| Internal dependency                                    | ✅ this _is_ the linking layer (`workspace:*`) the others build on                                      | ✅ workspace links; JIT "internal packages" (consume source) or `turbo watch` (consume dist) | ✅ workspace links; source-native via tsconfig/project references, buildable libs opt-in | ✅ workspace links; auto-syncs `package.json` deps & tsconfig references from its graph                                                |
+| Action dependency                                      | ⚠️ `pnpm -r` runs topologically + `--filter ...[ref]`, but no task pipeline (no cross-task `dependsOn`) | ✅ `dependsOn` in one root `turbo.json`; tasks = npm scripts (names must align)              | ✅ per-project targets + plugin-inferred tasks (less config, more magic)                 | ✅ first-class tasks with explicit inputs/outputs; inherited by project type/tag                                                       |
+| Graph introspection                                    | ⚠️ package graph only (`pnpm why`, `pnpm ls -r`)                                                        | ✅ `--dry-run` / `--graph` (resolved task graph as text/file)                                | ✅ `nx graph` (interactive UI, best-in-class)                                            | ✅ `moon task-graph` / `moon query` (dump/serve the graph)                                                                             |
 
 Security note: whoever can _write_ to a shared remote cache can execute code on
 every machine that restores from it — restrict write tokens to CI.
@@ -65,11 +65,21 @@ choice too.
 
 ## Layout
 
-- `sample-repos/` — 20 standalone repos: 5 apps, 4 UI libs, 2 type libs,
-  4 util libs, 3 CLI tools, 2 integration-test-only suites. Each has its own
+- `sample-repos/` — 24 standalone repos: 5 apps, 4 UI libs, 2 type libs,
+  4 util libs, 6 CLI tools, 3 integration-test-only suites. Each has its own
   toolchain (vite / next / webpack / parcel / rollup / tsup / esbuild / babel /
   tsc / none) and test runner (vitest / jest / mocha / node:test / playwright /
-  none). Every repo has a `.npmrc` pointing the `@acme` scope at the local registry.
+  none). Every npm repo has a `.npmrc` pointing the `@acme` scope at the local
+  registry. Four repos are not npm packages at all — no `package.json` — to
+  exercise the "Non-JS tasks" comparison row:
+  - `barcode-cli` — Go CLI (`make build` / `go test` / `make e2e`, where the
+    e2e tests build and exec the real binary)
+  - `stock-audit-cli` — Python CLI (setuptools `pyproject.toml`, pytest unit
+    tests + subprocess e2e tests)
+  - `label-gen-cli` — Rust CLI (cargo, unit tests + `tests/` e2e tests run
+    against the compiled binary via `CARGO_BIN_EXE`)
+  - `picking-e2e` — Python pytest e2e suite against a deployed order-service
+    (the pytest counterpart to `api-contract-tests`; skips when `API_URL` is down)
 - `registry/` — a [Verdaccio](https://verdaccio.org) private registry.
   `@acme/*` packages are stored locally and never proxied; everything else
   proxies through to npmjs.
@@ -80,7 +90,11 @@ choice too.
 
 Solid edges are `dependencies`, dashed edges are `devDependencies`, and ⚠ marks
 a consumer pinned to an old major (deliberate skew). `@acme/repo-lint` and
-`@acme/codegen-cli` are standalone — no internal dependencies in either direction.
+`@acme/codegen-cli` are standalone — no internal dependencies in either
+direction. The non-npm repos (barcode-cli, stock-audit-cli, label-gen-cli,
+picking-e2e) don't appear here at all: they share conventions with the JS repos
+(the `ABC-123456` SKU format, the order-service API) but nothing expresses that
+in any dependency graph — the cross-language edges every npm-based tool loses.
 
 ```mermaid
 flowchart TD
@@ -210,7 +224,10 @@ node scripts/build-all.mjs   # npm install + npm run build in all 20 repos (regi
 ```
 
 Repos without a build script (codegen-cli, e2e-checkout, api-contract-tests)
-are install-only.
+are install-only. The four non-npm repos (barcode-cli, stock-audit-cli,
+label-gen-cli, picking-e2e) are skipped entirely — their Go/Python/Rust
+toolchains are invisible to anything that walks `package.json`, which is
+precisely the integration gap the "Non-JS tasks" row scores each tool on.
 
 ### Toy build cache (local + remote, from scratch)
 

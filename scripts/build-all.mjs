@@ -27,6 +27,11 @@ const repos = fs
 
 for (const repo of repos) {
   const pkgDir = path.join(ROOT, repo);
+  if (!fs.existsSync(path.join(pkgDir, "package.json"))) {
+    console.log(`${repo} ... non-npm repo (skipped — has its own Go/Python/Rust toolchain)`);
+    results.push([repo, "non-npm (skipped)"]);
+    continue;
+  }
   const pkg = JSON.parse(fs.readFileSync(path.join(pkgDir, "package.json"), "utf8"));
   const hasBuild = Boolean(pkg.scripts?.build);
   process.stdout.write(`${repo} ... `);

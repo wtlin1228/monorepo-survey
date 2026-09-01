@@ -49,8 +49,11 @@ const OUTPUTS = {
 fs.mkdirSync(CACHE_DIR, { recursive: true });
 
 // ---- dependency graph, derived from package.json (no hand-maintained order) ----
+// Non-npm repos (Go/Python/Rust) have no package.json and stay outside this
+// npm-only graph — exactly the gap the "Non-JS tasks" comparison row is about.
 const repos = fs.readdirSync(REPOS_DIR, { withFileTypes: true })
-  .filter((e) => e.isDirectory()).map((e) => e.name).sort();
+  .filter((e) => e.isDirectory()).map((e) => e.name).sort()
+  .filter((r) => fs.existsSync(path.join(REPOS_DIR, r, "package.json")));
 const pkgs = Object.fromEntries(repos.map((r) => [
   r, JSON.parse(fs.readFileSync(path.join(REPOS_DIR, r, "package.json"), "utf8")),
 ]));
