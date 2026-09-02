@@ -1,0 +1,16 @@
+{
+  "name": "@acme/icons",
+  "version": "0.4.0",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "node scripts/generate.js",
+    "test": "node scripts/check-svgs.js",
+    "optimize": "svgo -f svg -o svg"
+  },
+  "devDependencies": {
+    "svgo": "^3.3.2"
+  },
+  "files": [
+    "dist"
+  ]
+}

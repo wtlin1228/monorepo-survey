@@ -1,0 +1,13 @@
+[package]
+name = "label-gen-cli"
+version = "0.5.0"
+edition = "2021"
+description = "Render pallet shipping labels for warehouse orders"
+
+[[bin]]
+name = "acme-label-gen"
+path = "src/main.rs"
+
+[lib]
+name = "label_gen"
+path = "src/lib.rs"

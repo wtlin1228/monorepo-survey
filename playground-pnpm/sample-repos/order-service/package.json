@@ -1,0 +1,26 @@
+{
+  "name": "order-service",
+  "version": "2.7.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "esbuild src/server.ts --bundle --platform=node --target=node20 --outfile=dist/server.js",
+    "start": "node dist/server.js",
+    "test": "NODE_ENV=test node --test --import tsx \"test/**/*.test.ts\"",
+    "migrate": "node scripts/migrate.js"
+  },
+  "dependencies": {
+    "@acme/logger": "^1.0.6",
+    "@acme/schema-definitions": "^1.2.0",
+    "@acme/validation-helpers": "^0.12.0",
+    "express": "^4.19.2",
+    "pg": "^8.12.0"
+  },
+  "devDependencies": {
+    "@acme/api-types": "^7.0.0",
+    "esbuild": "^0.23.0",
+    "tsx": "^4.16.5",
+    "typescript": "^5.5.4"
+  }
+}

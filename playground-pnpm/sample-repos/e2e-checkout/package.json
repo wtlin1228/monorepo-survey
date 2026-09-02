@@ -1,0 +1,16 @@
+{
+  "name": "e2e-checkout",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "report": "playwright show-report",
+    "install:browsers": "playwright install --with-deps chromium"
+  },
+  "devDependencies": {
+    "@acme/api-types": "^7.0.0",
+    "@playwright/test": "^1.46.0"
+  }
+}

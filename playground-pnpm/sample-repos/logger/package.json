@@ -1,0 +1,17 @@
+{
+  "name": "@acme/logger",
+  "version": "1.0.6",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test test/",
+    "posttest": "node --test --experimental-test-coverage test/ || true"
+  },
+  "devDependencies": {
+    "esbuild": "^0.23.0"
+  },
+  "files": [
+    "dist"
+  ],
+  "types": "dist/index.d.ts"
+}

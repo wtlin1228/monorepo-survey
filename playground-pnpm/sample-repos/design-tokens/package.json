@@ -1,0 +1,17 @@
+{
+  "name": "@acme/design-tokens",
+  "version": "2.1.0",
+  "main": "dist/tokens.js",
+  "scripts": {
+    "build": "style-dictionary build --config sd.config.json",
+    "test": "node validate-tokens.js",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "style-dictionary": "^4.0.1"
+  },
+  "files": [
+    "dist"
+  ],
+  "types": "dist/tokens.d.ts"
+}

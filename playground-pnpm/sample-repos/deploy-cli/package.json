@@ -1,0 +1,23 @@
+{
+  "name": "@acme/deploy-cli",
+  "version": "0.8.2",
+  "bin": {
+    "acme-deploy": "./bin/acme-deploy"
+  },
+  "scripts": {
+    "dev": "node src/main.js --dry-run",
+    "build": "esbuild src/main.js --bundle --platform=node --minify --outfile=bin/acme-deploy && chmod +x bin/acme-deploy",
+    "prebuild": "node -e \"require('fs').mkdirSync('bin',{recursive:true})\"",
+    "test": "node --test test/",
+    "smoke": "npm run build && ./bin/acme-deploy --dry-run"
+  },
+  "devDependencies": {
+    "esbuild": "^0.23.0"
+  },
+  "dependencies": {
+    "@acme/logger": "^1.0.0"
+  },
+  "files": [
+    "bin"
+  ]
+}

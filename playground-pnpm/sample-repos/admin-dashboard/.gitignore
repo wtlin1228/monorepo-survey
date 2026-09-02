@@ -1,0 +1,9 @@
+node_modules/
+*.log
+.env
+.env.local
+.DS_Store
+.next/
+out/
+coverage/
+next-env.d.ts
