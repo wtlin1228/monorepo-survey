@@ -2,21 +2,16 @@
   "name": "picker-kiosk",
   "version": "1.0.0",
   "private": true,
-  "source": "src/index.html",
   "scripts": {
-    "dev": "parcel",
-    "build": "parcel build --no-source-maps",
-    "clean": "rm -rf dist .parcel-cache"
+    "dev": "vite",
+    "build": "vite build",
+    "clean": "rm -rf dist"
   },
   "devDependencies": {
-    "parcel": "^2.12.0",
-    "process": "^0.11.10"
+    "vite": "^5.4.0"
   },
   "dependencies": {
     "@acme/http-client": "^2.3.0",
     "@acme/icons": "^0.4.0"
-  },
-  "@parcel/resolver-default": {
-    "packageExports": true
   }
 }

@@ -1,6 +1,15 @@
 packages:
   - sample-repos/*
 
+allowBuilds:
+  "@bundled-es-modules/glob": false
+  "@parcel/watcher": false
+  "@swc/core": false
+  esbuild: true
+  lmdb: false
+  msgpackr-extract: false
+  style-dictionary: false
+
 # v11+ supply-chain gate: packages younger than 1 day won't resolve.
 # Our @acme/* tarballs were published to Verdaccio minutes ago, so the
 # very first install would refuse them. Exempt the internal scope and
