@@ -1,0 +1,10 @@
+packages:
+  - sample-repos/*
+
+# v11+ supply-chain gate: packages younger than 1 day won't resolve.
+# Our @acme/* tarballs were published to Verdaccio minutes ago, so the
+# very first install would refuse them. Exempt the internal scope and
+# keep the 1-day quarantine for public packages:
+minimumReleaseAgeExclude:
+  - "@acme/*"
+# (lab shortcut instead, if you prefer: minimumReleaseAge: 0)
