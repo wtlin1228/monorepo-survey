@@ -1,10 +1,17 @@
 # Trying pnpm workspaces (the no-tool baseline)
 
-Hands-on migration of the 24 `sample-repos/` into a single pnpm workspace.
+Hands-on migration of the 24 sample repos into a single pnpm workspace.
 This is the baseline every other candidate builds on: it gives us **internal
 dependency** (workspace links) and partial **action dependency** (topological
 `pnpm -r`), and deliberately lacks **build cache** and **task pipelines** — so
 after this trial you'll know exactly which pain the other tools exist to remove.
+
+**Everything happens inside `playground-pnpm/`.** Phase 0 copies the canonical
+`sample-repos/` into `playground-pnpm/sample-repos/`, and that copy is the only
+tree this trial mutates — the top-level `sample-repos/` stays pristine. The
+other three trials (turborepo, nx, moon) will do the same in their own
+`playground-*` folders, so all four start from an identical untouched copy.
+Unless a step says otherwise, run every command from `playground-pnpm/`.
 
 Work through the phases in order; each has an expected outcome and a
 **Record** prompt — write findings into the scorecard at the bottom as you go,
@@ -21,34 +28,48 @@ those is called out in the phase where it bites.
 
 ## Phase 0 — safety net (~5 min)
 
-Keep the multi-repo baseline intact; do everything on a branch.
+The canonical `sample-repos/` is never touched; the trial runs on a copy.
+A branch is still worth it so you can commit migration progress as you go.
 
 - [ ] `git checkout -b try-pnpm`
+- [ ] Copy the sample repos into the playground (from the **repo root**;
+      `git archive` copies exactly the tracked, pristine tree — no
+      `node_modules`, no stale build output):
+
+  ```sh
+  git archive HEAD sample-repos | tar -x -C playground-pnpm
+  ```
+
 - [ ] Start the registry — still needed, because three consumers pin **old
-      majors** that only exist in Verdaccio (see Phase 6):
+      majors** that only exist in Verdaccio (see Phase 6). From the repo root:
 
   ```sh
   cd registry && npm install && npm start   # http://localhost:4873
   ```
 
 - [ ] Seed it if empty: `node scripts/publish-all.mjs --build`
-      (full mode, so old-major tarballs contain real `dist/`)
+      (full mode, so old-major tarballs contain real `dist/`; the script
+      builds from the canonical `sample-repos/`, which is exactly what we
+      want — registry tarballs come from pristine sources)
 
-To abandon or restart the trial at any point:
+To abandon or restart the trial at any point (the canonical tree needs no
+cleanup — it was never touched):
 
 ```sh
-git checkout master
-git clean -fdx sample-repos/   # kills node_modules, lockfiles, build output
-rm -rf node_modules pnpm-lock.yaml pnpm-workspace.yaml
+cd playground-pnpm
+rm -rf sample-repos node_modules package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc .gitignore
+# then re-run the git archive copy above to start over
 ```
 
 ## Phase 1 — scaffold the workspace (~10 min)
 
 A pnpm workspace is: a root `package.json`, a `pnpm-workspace.yaml`, one root
 `.npmrc`, one lockfile. That's the entire tool footprint — remember this when
-comparing config surface with turbo/nx/moon later.
+comparing config surface with turbo/nx/moon later. The workspace root is
+`playground-pnpm/` itself: all four files below live there, next to the
+copied `sample-repos/`.
 
-- [ ] Root `package.json`:
+- [ ] `playground-pnpm/package.json`:
 
   ```json
   {
@@ -63,7 +84,7 @@ comparing config surface with turbo/nx/moon later.
   with a pinned pnpm, misspelled keys in `pnpm-workspace.yaml` are hard
   errors with suggestions, not silent no-ops.)
 
-- [ ] Root `pnpm-workspace.yaml`:
+- [ ] `playground-pnpm/pnpm-workspace.yaml`:
 
   ```yaml
   packages:
@@ -82,7 +103,7 @@ comparing config surface with turbo/nx/moon later.
   picking-e2e) have no `package.json`; pnpm silently skips them. Note that
   down — it's the "Non-JS tasks" row scoring itself.
 
-- [ ] Root `.npmrc` (since v11 this file is for **auth and registry settings
+- [ ] `playground-pnpm/.npmrc` (since v11 this file is for **auth and registry settings
       only** — everything else must live in `pnpm-workspace.yaml`, and our
       scoped-registry line is exactly the kind that stays; the per-repo
       `.npmrc` files are now dead):
@@ -91,8 +112,9 @@ comparing config surface with turbo/nx/moon later.
   @acme:registry=http://localhost:4873/
   ```
 
-- [ ] Add `node_modules/` and `pnpm-lock.yaml`? No — lockfile gets committed.
-      Add to root `.gitignore`:
+- [ ] Add `node_modules/` and `pnpm-lock.yaml`? No — lockfile gets committed
+      (and so does the copied `sample-repos/`, on the `try-pnpm` branch, so
+      migration edits are recorded). Add a `playground-pnpm/.gitignore`:
 
   ```
   node_modules/
@@ -103,14 +125,15 @@ comparing config surface with turbo/nx/moon later.
 
 ## Phase 2 — first install (~20 min, expect breakage)
 
-- [ ] Delete the 20 per-repo `package-lock.json` files (npm's lockfiles are
-      meaningless under pnpm; one `pnpm-lock.yaml` replaces all of them):
+- [ ] Delete the 20 per-repo `package-lock.json` files in the **copy** (npm's
+      lockfiles are meaningless under pnpm; one `pnpm-lock.yaml` replaces all
+      of them). From `playground-pnpm/`:
 
   ```sh
   rm sample-repos/*/package-lock.json
   ```
 
-- [ ] From the root: `pnpm install`
+- [ ] From `playground-pnpm/`: `pnpm install`
 
 Two failure classes are _expected_ — both are findings, not nuisances:
 
@@ -137,13 +160,14 @@ Two failure classes are _expected_ — both are findings, not nuisances:
 that's the v11 `minimumReleaseAge` quarantine doing its job on a <1-day-old
 release — pin an older version or extend `minimumReleaseAgeExclude`.)
 
-- [ ] Verify every JS repo still builds, from the root, one command:
+- [ ] Verify every JS repo still builds, from `playground-pnpm/`, one command:
 
   ```sh
   pnpm -r run build
   ```
 
-  This replaces `scripts/build-all.mjs` (which loops `npm install` per repo).
+  This replaces `scripts/build-all.mjs` (which loops `npm install` per repo
+  over the canonical multi-repo tree).
 
 **Record:** how many phantom deps you had to declare and where; install time
 vs. 20 separate `npm install`s; disk usage of one shared store vs 20
@@ -221,23 +245,32 @@ what happens if you typo `workspace:*` on a package not in the workspace
   pnpm --filter "shop-web..." run build
   ```
 
-- [ ] Affected detection — "everything changed since master, plus dependents":
+- [ ] Affected detection — "everything changed since \<ref\>, plus dependents".
+      Caveat of the playground setup: on `master` the copied
+      `playground-pnpm/sample-repos/` doesn't exist, so `...[master]` marks
+      **every** package as changed. Commit the migrated workspace on the
+      `try-pnpm` branch first, then compare against `HEAD`:
 
   ```sh
-  pnpm --filter "...[master]" run build
+  git add -A playground-pnpm && git commit -m "pnpm workspace migrated"
+  pnpm --filter "...[HEAD]" run build     # nothing dirty -> nothing to build
   ```
 
   Edit `sample-repos/logger/src/` again and re-run: expect logger +
   http-client + deploy-cli + shop-web + picker-kiosk + admin-dashboard +
-  order-service (compare with the toy cache's 8-repo blast radius).
+  order-service (compare with the toy cache's 8-repo blast radius). In real
+  CI the ref would be the default branch — the mechanism is the same.
 
 - [ ] Now the missing half — **no cross-task pipeline**. Clean everything and
       run tests without building:
 
   ```sh
-  git clean -fdx sample-repos/*/dist sample-repos/*/lib sample-repos/*/bin sample-repos/*/.next
+  rm -rf sample-repos/*/dist sample-repos/*/lib sample-repos/*/bin sample-repos/*/.next
   pnpm -r --no-bail run test
   ```
+
+  (`rm -rf`, not `git clean` — if the copied `sample-repos/` isn't committed
+  yet, `git clean -fdx` would delete the whole copy, not just build output.)
 
   Tests that import a workspace package's `dist/` fail: there is no way to
   say "test dependsOn build" in pnpm. The workaround is `pnpm -r build &&
@@ -356,6 +389,16 @@ Fill in as you go; this becomes the justified pnpm column of the README table.
 | Easy to integrate into CI? |         | affected via `--filter "...[master]"` — works with shallow clones? needs fetch depth: |
 | Migration cost             |         | Phase 2 breakage: ** ; Phase 6 skew upgrades: **                                      |
 
-Keep the branch (`try-pnpm`) when done — turbo layers directly on top of a
-working pnpm workspace, so the Turborepo trial starts from this exact state
-(`git checkout -b try-turbo try-pnpm`).
+Keep `playground-pnpm/` intact when done — turbo layers directly on top of a
+working pnpm workspace, so the Turborepo trial can seed its own folder from
+this exact end state instead of redoing the migration:
+
+```sh
+rsync -a --exclude node_modules playground-pnpm/ playground-turborepo/
+rm playground-turborepo/try-pnpm.md
+cd playground-turborepo && pnpm install
+```
+
+The nx and moon trials start from a fresh pristine copy instead
+(`git archive HEAD sample-repos | tar -x -C playground-nx`), since they
+don't assume a pnpm workspace underneath.
